@@ -7,7 +7,6 @@ import hashlib
 import time
 import urllib.request
 import urllib.parse
-from invgate import get_ticket_assignee_name, add_tag_to_ticket
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -158,6 +157,7 @@ def handler(environ, start_response):
         return _wsgi_start(start_response)
 
     respuestas = []
+    from invgate import get_ticket_assignee_name, add_tag_to_ticket
     for ticket_id in tickets:
         _log(f"Procesando ticket #{ticket_id}")
         try:
