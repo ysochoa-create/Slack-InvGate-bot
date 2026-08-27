@@ -1,2 +1,10 @@
+[project]
+name = "slack-invgate-bot"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+    "requests",
+]
+
 [tool.vercel]
 entrypoint = "api.slack:handler"
