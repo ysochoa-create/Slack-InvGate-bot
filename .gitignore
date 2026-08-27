@@ -1,0 +1,9 @@
+.env
+informacion.txt
+__pycache__/
+*.pyc
+.venv/
+test_invgate.py
+test_e2e.py
+zendesk.py
+claves.txt
