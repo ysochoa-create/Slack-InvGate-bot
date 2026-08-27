@@ -82,7 +82,7 @@ def bot_already_replied(channel, thread_ts):
 
 
 def extract_tickets(text):
-    matches = re.findall(r"#?(\d{5,8})", text)
+    matches = re.findall(r"#?(\d{4,10})", text)
     return list(set(matches))
 
 
@@ -91,6 +91,10 @@ def _wsgi_start(start_response, status="200 OK", headers=None):
         headers = [("Content-Type", "application/json")]
     start_response(status, headers)
     return [b"{}"]
+
+
+def _log(msg):
+    print(f"[slack-bot] {msg}", flush=True)
 
 
 def handler(environ, start_response):
@@ -105,30 +109,40 @@ def handler(environ, start_response):
     signature = environ.get("HTTP_X_SLACK_SIGNATURE", "")
 
     if not verify_slack_signature(body, timestamp, signature):
+        _log("Firma inválida o timestamp fuera de ventana")
         return _wsgi_start(start_response, "401 Unauthorized")
 
     if environ.get("HTTP_X_SLACK_RETRY_NUM"):
+        _log("Ignorando retry de Slack")
         return _wsgi_start(start_response)
 
     try:
         payload = json.loads(body)
     except json.JSONDecodeError:
+        _log("Body JSON inválido")
         return _wsgi_start(start_response)
 
+    _log(f"payload keys={list(payload.keys())}")
+
     if payload.get("type") == "url_verification":
+        _log("Respondiendo url_verification")
         start_response("200 OK", [("Content-Type", "application/json")])
         return [json.dumps({"challenge": payload.get("challenge", "")}).encode()]
 
-    event = payload.get("event", {})
+    event = payload.get("event") or {}
+    _log(f"event type={event.get('type')} subtype={event.get('subtype')} bot_id={event.get('bot_id')} text={event.get('text')!r}")
 
     if event.get("subtype") or event.get("bot_id"):
+        _log("Ignorando evento de bot o subtipo")
         return _wsgi_start(start_response)
 
     if event.get("thread_ts") and event.get("thread_ts") != event.get("ts"):
+        _log("Ignorando reply en hilo")
         return _wsgi_start(start_response)
 
-    text = event.get("text", "")
+    text = event.get("text") or ""
     tickets = extract_tickets(text)
+    _log(f"tickets detectados={tickets}")
     if not tickets:
         return _wsgi_start(start_response)
 
@@ -136,16 +150,21 @@ def handler(environ, start_response):
     thread_ts = event.get("ts")
 
     if not channel or not thread_ts:
+        _log("Falta channel o ts en el evento")
         return _wsgi_start(start_response)
 
     if bot_already_replied(channel, thread_ts):
+        _log("Bot ya respondió en este hilo")
         return _wsgi_start(start_response)
 
     respuestas = []
     for ticket_id in tickets:
+        _log(f"Procesando ticket #{ticket_id}")
         try:
             name, email, group_name, jira_key, resuelto = get_ticket_assignee_name(ticket_id)
-        except Exception:
+            _log(f"Ticket #{ticket_id} -> name={name!r} email={email!r} group={group_name!r} jira={jira_key!r} resuelto={resuelto}")
+        except Exception as exc:
+            _log(f"Error invgate ticket #{ticket_id}: {exc}")
             continue
 
         if resuelto:
@@ -155,10 +174,11 @@ def handler(environ, start_response):
         if name or group_name:
             try:
                 add_tag_to_ticket(ticket_id)
-            except Exception:
-                pass
+            except Exception as exc:
+                _log(f"Error add_tag ticket #{ticket_id}: {exc}")
 
         if not name and not group_name:
+            _log(f"Ticket #{ticket_id}: sin asignación, no responde")
             continue
 
         if name and email:
@@ -174,9 +194,12 @@ def handler(environ, start_response):
 
     if respuestas:
         mensaje = "Hola, lo tenemos en el radar:\n" + "\n".join(respuestas)
+        _log(f"Enviando mensaje a Slack: {mensaje!r}")
         try:
             post_message(channel, mensaje, thread_ts)
-        except Exception:
-            pass
+        except Exception as exc:
+            _log(f"Error post_message: {exc}")
+    else:
+        _log("Sin respuestas para enviar")
 
     return _wsgi_start(start_response)
