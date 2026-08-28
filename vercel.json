@@ -1,5 +1,8 @@
 {
   "rewrites": [
-    { "source": "/api/slack", "destination": "/api/slack.py" }
+    {
+      "source": "/api/slack",
+      "destination": "/api/slack.py"
+    }
   ]
 }
