@@ -207,7 +207,7 @@ class handler(BaseHTTPRequestHandler):
                 if name and email:
                     slack_user_id = find_slack_user_by_email(email)
                     mention = f"<@{slack_user_id}>" if slack_user_id else name
-                    linea += f" — asignado a {mention}"
+                    linea += f" — Escalado por {mention}"
                 respuestas.append(linea)
             elif name and email:
                 slack_user_id = find_slack_user_by_email(email)
