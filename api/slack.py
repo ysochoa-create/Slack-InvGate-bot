@@ -87,7 +87,16 @@ def bot_already_replied(channel, thread_ts):
 
 
 def extract_tickets(text):
-    matches = re.findall(r"#?(\d{3,10})", text)
+    # Slack envía menciones como <@U083J5RB2CT> o <#C0123ABC|canal>,
+    # y esos IDs internos contienen dígitos que NO son tickets.
+    # Se eliminan antes de buscar cualquier número, así el bot nunca
+    # "lee" IDs internos de usuario/canal como si fueran tickets.
+    texto_limpio = re.sub(r"<[@#!][^>]+>", "", text)
+
+    # Se aceptan tickets con o sin '#' (ej: "#083" o "083"),
+    # ya que llegan mensajes de ambas formas.
+    matches = re.findall(r"\b(\d{3,10})\b", texto_limpio)
+
     return list(set(matches))
 
 
