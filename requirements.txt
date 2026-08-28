@@ -1,4 +1,0 @@
-slack-bolt
-requests
-python-dotenv
- 
