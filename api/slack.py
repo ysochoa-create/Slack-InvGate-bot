@@ -202,14 +202,17 @@ class handler(BaseHTTPRequestHandler):
                 _log(f"Ticket #{ticket_id}: sin asignación, no responde")
                 continue
 
-            if name and email:
+            if group_name and jira_key:
+                linea = f"• #{ticket_id}: escalado a Jira (*{jira_key}*), equipo *{group_name}*"
+                if name and email:
+                    slack_user_id = find_slack_user_by_email(email)
+                    mention = f"<@{slack_user_id}>" if slack_user_id else name
+                    linea += f" — asignado a {mention}"
+                respuestas.append(linea)
+            elif name and email:
                 slack_user_id = find_slack_user_by_email(email)
                 mention = f"<@{slack_user_id}>" if slack_user_id else name
                 respuestas.append(f"• #{ticket_id}: asignado a {mention}")
-            elif group_name and jira_key:
-                respuestas.append(
-                    f"• #{ticket_id}: escalado a Jira (*{jira_key}*), equipo *{group_name}*"
-                )
             elif group_name:
                 respuestas.append(f"• #{ticket_id}: asignado al equipo *{group_name}*")
 
