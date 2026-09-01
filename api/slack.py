@@ -188,17 +188,21 @@ class handler(BaseHTTPRequestHandler):
         for ticket_id in tickets:
             _log(f"Procesando ticket #{ticket_id}")
             try:
-                name, email, group_name, jira_key, resuelto = get_ticket_assignee_name(ticket_id)
+                name, email, group_name, jira_key, resuelto, resuelto_por = get_ticket_assignee_name(ticket_id)
                 _log(
                     f"Ticket #{ticket_id} -> name={name!r} email={email!r} "
-                    f"group={group_name!r} jira={jira_key!r} resuelto={resuelto}"
+                    f"group={group_name!r} jira={jira_key!r} resuelto={resuelto} "
+                    f"resuelto_por={resuelto_por!r}"
                 )
             except Exception as exc:
                 _log(f"Error invgate ticket #{ticket_id}: {exc}")
                 continue
 
             if resuelto:
-                respuestas.append(f"• #{ticket_id}: ya está resuelto/cerrado ✅")
+                if resuelto_por:
+                    respuestas.append(f"• #{ticket_id}: ya está resuelto/cerrado ✅ — resuelto por {resuelto_por}")
+                else:
+                    respuestas.append(f"• #{ticket_id}: ya está resuelto/cerrado ✅")
                 continue
 
             if name or group_name:

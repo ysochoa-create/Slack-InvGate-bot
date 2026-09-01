@@ -73,18 +73,20 @@ def _extract_jira_key(ticket_id):
 
 def get_ticket_assignee_name(ticket_id):
     """
-    Devuelve (name, email, group_name, jira_key, resuelto) para un ticket de InvGate.
+    Devuelve (name, email, group_name, jira_key, resuelto, resuelto_por) para
+    un ticket de InvGate.
 
-    - Ticket ya resuelto/cerrado: (None, None, None, None, True)
-    - Ticket escalado a Jira: (None, None, nombre_del_equipo, jira_key, False)
-    - Ticket no escalado: (nombre_agente, email_agente, nombre_grupo, None, False)
+    - Ticket ya resuelto/cerrado: (None, None, None, None, True, nombre_o_None)
+    - Ticket escalado a Jira: (None, None, nombre_del_equipo, jira_key, False, None)
+    - Ticket no escalado: (nombre_agente, email_agente, nombre_grupo, None, False, None)
     """
     incident = _get("incident", {"id": ticket_id})
     if not incident:
-        return None, None, None, None, False
+        return None, None, None, None, False, None
 
     if incident.get("solved_at"):
-        return None, None, None, None, True
+        resuelto_por = _get_resolver_name(incident)
+        return None, None, None, None, True, resuelto_por
 
     custom_fields = incident.get("custom_fields") or {}
     enviado_a_jira = custom_fields.get(str(CUSTOM_FIELD_ENVIADO_A_JIRA)) is True
@@ -106,7 +108,7 @@ def get_ticket_assignee_name(ticket_id):
                 name = user.get("name") or user.get("username")
                 email = user.get("email")
 
-        return name, email, group_name, jira_key, False
+        return name, email, group_name, jira_key, False, None
 
     # No escalado: comportamiento equivalente al de Zendesk (agente asignado)
     assigned_id = incident.get("assigned_id")
@@ -127,7 +129,39 @@ def get_ticket_assignee_name(ticket_id):
             if items:
                 group_name = items[0].get("name")
 
-    return name, email, group_name, None, False
+    return name, email, group_name, None, False, None
+
+
+def _get_resolver_name(incident):
+    """
+    Intenta determinar quién resolvió el ticket.
+
+    NOTA: no está confirmado cuál es el campo exacto que usa esta instancia
+    de InvGate para "resuelto por" — se prueban varios nombres típicos y,
+    si ninguno aparece, se cae de vuelta al agente asignado (asumiendo que
+    quien tenía el ticket asignado fue quien lo cerró). El log de abajo
+    muestra las llaves reales del incidente resuelto para poder confirmar
+    y ajustar esto con un caso real.
+    """
+    _log(f"[invgate] incidente resuelto, keys disponibles: {sorted(incident.keys())}")
+
+    resolver_id = (
+        incident.get("solved_by_id")
+        or incident.get("closed_by_id")
+        or incident.get("resolver_id")
+        or incident.get("assigned_id")
+    )
+    if not resolver_id:
+        return None
+
+    user = _get("user", {"id": resolver_id})
+    if not user:
+        return None
+    return user.get("name") or user.get("username")
+
+
+def _log(message):
+    print(f"[invgate] {message}")
 
 
 def add_tag_to_ticket(ticket_id, tag="ticket_priorizado"):
