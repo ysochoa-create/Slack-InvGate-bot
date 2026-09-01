@@ -188,7 +188,7 @@ class handler(BaseHTTPRequestHandler):
         for ticket_id in tickets:
             _log(f"Procesando ticket #{ticket_id}")
             try:
-                name, email, group_name, jira_key, resuelto, resuelto_por = get_ticket_assignee_name(ticket_id)
+                name, email, group_name, jira_key, resuelto, resuelto_por, resuelto_por_email = get_ticket_assignee_name(ticket_id)
                 _log(
                     f"Ticket #{ticket_id} -> name={name!r} email={email!r} "
                     f"group={group_name!r} jira={jira_key!r} resuelto={resuelto} "
@@ -200,7 +200,12 @@ class handler(BaseHTTPRequestHandler):
 
             if resuelto:
                 if resuelto_por:
-                    respuestas.append(f"• #{ticket_id}: ya está resuelto/cerrado ✅ — resuelto por {resuelto_por}")
+                    if resuelto_por_email:
+                        slack_user_id = find_slack_user_by_email(resuelto_por_email)
+                        mention = f"<@{slack_user_id}>" if slack_user_id else resuelto_por
+                    else:
+                        mention = resuelto_por
+                    respuestas.append(f"• #{ticket_id}: ya está resuelto/cerrado ✅ — resuelto por {mention}")
                 else:
                     respuestas.append(f"• #{ticket_id}: ya está resuelto/cerrado ✅")
                 continue
